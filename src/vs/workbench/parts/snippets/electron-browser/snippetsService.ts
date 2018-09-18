@@ -16,7 +16,7 @@ import { watch } from 'vs/base/node/extfs';
 import { exists, mkdirp, readdir } from 'vs/base/node/pfs';
 import { Position } from 'vs/editor/common/core/position';
 import { ITextModel } from 'vs/editor/common/model';
-import { ISuggestion, ISuggestResult, ISuggestSupport, LanguageId, SnippetType, SuggestContext, SuggestionType } from 'vs/editor/common/modes';
+import { ISuggestion, ISuggestResult, ISuggestSupport, LanguageId, SuggestContext, SuggestionType } from 'vs/editor/common/modes';
 import { IModeService } from 'vs/editor/common/services/modeService';
 import { SnippetParser } from 'vs/editor/contrib/snippet/snippetParser';
 import { setSnippetSuggestSupport } from 'vs/editor/contrib/suggest/suggest';
@@ -274,7 +274,7 @@ export class SnippetSuggestion implements ISuggestion {
 	sortText: string;
 	noAutoAccept: boolean;
 	type: SuggestionType;
-	snippetType: SnippetType;
+	insertTextIsSnippet: true;
 
 	constructor(
 		readonly snippet: Snippet,
@@ -287,7 +287,7 @@ export class SnippetSuggestion implements ISuggestion {
 		this.sortText = `${snippet.isFromExtension ? 'z' : 'a'}-${snippet.prefix}`;
 		this.noAutoAccept = true;
 		this.type = 'snippet';
-		this.snippetType = 'textmate';
+		this.insertTextIsSnippet = true;
 	}
 
 	resolve(): this {
@@ -317,6 +317,7 @@ export class SnippetSuggestProvider implements ISuggestSupport {
 		return this._snippets.getSnippets(languageId).then(snippets => {
 
 			let suggestions: SnippetSuggestion[];
+			let shift = Math.max(0, position.column - 100);
 			let pos = { lineNumber: position.lineNumber, column: Math.max(1, position.column - 100) };
 			let lineOffsets: number[] = [];
 			let linePrefixLow = model.getLineContent(position.lineNumber).substr(Math.max(0, position.column - 100), position.column - 1).toLowerCase();
@@ -349,7 +350,8 @@ export class SnippetSuggestProvider implements ISuggestSupport {
 			} else {
 				let consumed = new Set<Snippet>();
 				suggestions = [];
-				for (const start of lineOffsets) {
+				for (let start of lineOffsets) {
+					start -= shift;
 					for (const snippet of snippets) {
 						if (!consumed.has(snippet) && matches(linePrefixLow, start, snippet.prefixLow, 0)) {
 							suggestions.push(new SnippetSuggestion(snippet, linePrefixLow.length - start));
